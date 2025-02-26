@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <list>
 
 #include "iothub_module_client_ll.h"
 #include "iothub_client_options.h"
@@ -63,6 +64,8 @@ static MESSAGE_INSTANCE* CreateMessageInstance(IOTHUB_MESSAGE_HANDLE message)
     return messageInstance;
 }
 
+static std::list<IOTHUB_MESSAGE_HANDLE> open_acks = { };
+
 static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDLE message, void* userContextCallback)
 {
     IOTHUBMESSAGE_DISPOSITION_RESULT result;
@@ -74,36 +77,14 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
 
     if (IoTHubMessage_GetByteArray(message, &messageBody, &contentSize) != IOTHUB_MESSAGE_OK)
     {
-        messageBody = "<null>";
-    }
-
-    printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
+        printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
+            messagesReceivedByInput1Queue, "messageBody");
+    } else {
+        printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
             messagesReceivedByInput1Queue, messageBody);
-
-    // This message should be sent to next stop in the pipeline, namely "output1".  What happens at "outpu1" is determined
-    // by the configuration of the Edge routing table setup.
-    MESSAGE_INSTANCE *messageInstance = CreateMessageInstance(message);
-    if (NULL == messageInstance)
-    {
-        result = IOTHUBMESSAGE_ABANDONED;
     }
-    else
-    {
-        printf("Sending message (%zu) to the next stage in pipeline\n", messagesReceivedByInput1Queue);
 
-        clientResult = IoTHubModuleClient_LL_SendEventToOutputAsync(iotHubModuleClientHandle, messageInstance->messageHandle, "output1", SendConfirmationCallback, (void *)messageInstance);
-        if (clientResult != IOTHUB_CLIENT_OK)
-        {
-            IoTHubMessage_Destroy(messageInstance->messageHandle);
-            free(messageInstance);
-            printf("IoTHubModuleClient_LL_SendEventToOutputAsync failed on sending msg#=%zu, err=%d\n", messagesReceivedByInput1Queue, clientResult);
-            result = IOTHUBMESSAGE_ABANDONED;
-        }
-        else
-        {
-            result = IOTHUBMESSAGE_ACCEPTED;
-        }
-    }
+    result = IOTHUBMESSAGE_ASYNC_ACK;
 
     messagesReceivedByInput1Queue++;
     return result;
@@ -125,8 +106,8 @@ static IOTHUB_MODULE_CLIENT_LL_HANDLE InitializeConnection()
     else
     {
         // Uncomment the following lines to enable verbose logging.
-        // bool traceOn = true;
-        // IoTHubModuleClient_LL_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &trace);
+        bool traceOn = true;
+        IoTHubModuleClient_LL_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &traceOn);
     }
 
     return iotHubModuleClientHandle;
@@ -172,6 +153,13 @@ void iothub_module()
         {
             IoTHubModuleClient_LL_DoWork(iotHubModuleClientHandle);
             ThreadAPI_Sleep(100);
+
+            // ACK open messages
+            for (IOTHUB_MESSAGE_HANDLE msg : open_acks) {
+               if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, msg, IOTHUBMESSAGE_ACCEPTED)) {
+                   IoTHubMessage_Destroy(msg);
+                }
+            }
         }
     }
 

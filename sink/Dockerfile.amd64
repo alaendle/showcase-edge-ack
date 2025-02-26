@@ -1,21 +1,13 @@
-FROM ubuntu:bionic AS base
+FROM ubuntu:jammy AS build-env
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends software-properties-common && \
-    add-apt-repository -y ppa:aziotsdklinux/ppa-azureiot && \
-    apt-get update && \
-    apt-get install -y azure-iot-sdk-c-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-FROM base AS build-env
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends cmake gcc g++ make && \
+    apt-get install -y --no-install-recommends cmake gcc g++ make libssl-dev libcurl4-openssl-dev uuid-dev && \
     rm -rf /var/lib/apt/lists/* 
 WORKDIR /app
 COPY . ./
 RUN cmake . 
 RUN make
 
-FROM base
+FROM ubuntu:jammy
 WORKDIR /app
 COPY --from=build-env /app ./
 RUN useradd -ms /bin/bash moduleuser

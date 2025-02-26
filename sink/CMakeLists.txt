@@ -17,12 +17,14 @@ compileAsC99()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DUSE_EDGE_MODULES")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_EDGE_MODULES")
 
-set(AZUREIOT_INC_FOLDER "/usr/include/azureiot" "/usr/include/azureiot/inc")
+set(AZUREIOT_INC_FOLDER "azure-iot-sdk/include" "azure-iot-sdk/include/azureiot")
 
 include_directories(${AZUREIOT_INC_FOLDER})
 
+link_directories("azure-iot-sdk/lib")
+
 set(main_c_files
-    ./main.c
+    ./main.cpp
 )
 
 add_executable(main ${main_c_files})
@@ -34,6 +36,7 @@ target_link_libraries(main
     umqtt
     prov_auth_client
     hsm_security_client
+    utpm
     uhttp
     aziotsharedutil
     pthread

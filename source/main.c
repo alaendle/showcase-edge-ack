@@ -15,6 +15,8 @@
 #include "iothub.h"
 #include "time.h"
 
+int messagesSend = 0;
+
 // SendConfirmationCallback is invoked when the message that was forwarded on from 'InputQueue1Callback'
 // pipeline function is confirmed.
 static void SendConfirmationCallback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
@@ -42,7 +44,7 @@ static IOTHUB_MODULE_CLIENT_LL_HANDLE InitializeConnection()
     {
         // Uncomment the following lines to enable verbose logging.
         bool traceOn = true;
-        IoTHubModuleClient_LL_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &trace);
+        IoTHubModuleClient_LL_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &traceOn);
     }
 
     return iotHubModuleClientHandle;
