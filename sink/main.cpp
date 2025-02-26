@@ -5,7 +5,7 @@
 #include <ctime>
 #include <cstdio>
 
-#include "iothub_module_client_ll.h"
+#include "iothub_module_client.h"
 #include "iothub_client_options.h"
 #include "iothub_message.h"
 #include "azure_c_shared_utility/threadapi.h"
@@ -39,7 +39,7 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
 {
     IOTHUBMESSAGE_DISPOSITION_RESULT result;
     IOTHUB_CLIENT_RESULT clientResult;
-    IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle = (IOTHUB_MODULE_CLIENT_LL_HANDLE)userContextCallback;
+    IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle = (IOTHUB_MODULE_CLIENT_HANDLE)userContextCallback;
 
     unsigned const char* messageBody;
     size_t contentSize;
@@ -65,43 +65,43 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
     return result;
 }
 
-static IOTHUB_MODULE_CLIENT_LL_HANDLE InitializeConnection()
+static IOTHUB_MODULE_CLIENT_HANDLE InitializeConnection()
 {
-    IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle;
+    IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle;
 
     if (IoTHub_Init() != 0)
     {
         printf("Failed to initialize the platform.\r\n");
         iotHubModuleClientHandle = NULL;
     }
-    else if ((iotHubModuleClientHandle = IoTHubModuleClient_LL_CreateFromEnvironment(MQTT_Protocol)) == NULL)
+    else if ((iotHubModuleClientHandle = IoTHubModuleClient_CreateFromEnvironment(MQTT_Protocol)) == NULL)
     {
-        printf("ERROR: IoTHubModuleClient_LL_CreateFromEnvironment failed\r\n");
+        printf("ERROR: IoTHubModuleClient_CreateFromEnvironment failed\r\n");
     }
     else
     {
         // Uncomment the following lines to enable verbose logging.
         bool traceOn = true;
-        IoTHubModuleClient_LL_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &traceOn);
+        IoTHubModuleClient_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &traceOn);
     }
 
     return iotHubModuleClientHandle;
 }
 
-static void DeInitializeConnection(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle)
+static void DeInitializeConnection(IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle)
 {
     if (iotHubModuleClientHandle != NULL)
     {
-        IoTHubModuleClient_LL_Destroy(iotHubModuleClientHandle);
+        IoTHubModuleClient_Destroy(iotHubModuleClientHandle);
     }
     IoTHub_Deinit();
 }
 
-static int SetupCallbacksForModule(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle)
+static int SetupCallbacksForModule(IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle)
 {
     int ret;
 
-    if (IoTHubModuleClient_LL_SetInputMessageCallback(iotHubModuleClientHandle, "input", InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
+    if (IoTHubModuleClient_SetInputMessageCallback(iotHubModuleClientHandle, "input", InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
     {
         printf("ERROR: IoTHubModuleClient_LL_SetInputMessageCallback(\"input\")..........FAILED!\r\n");
         ret = 1;
@@ -116,7 +116,7 @@ static int SetupCallbacksForModule(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleCl
 
 void iothub_module()
 {
-    IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleClientHandle;
+    IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClientHandle;
 
     srand((unsigned int)time(NULL));
 
@@ -126,7 +126,7 @@ void iothub_module()
         printf("Waiting for incoming messages.\r\n");
         while (true)
         {
-            IoTHubModuleClient_LL_DoWork(iotHubModuleClientHandle);
+            //IoTHubModuleClient_DoWork(iotHubModuleClientHandle);
             ThreadAPI_Sleep(100);
 
             // ACK open messages
@@ -139,16 +139,18 @@ void iothub_module()
 
                int delay = messagesReceivedByInputQueue >= 100 && messagesReceivedByInputQueue < 300 ? 45 : 5;
 
-               if(messageInstance->send_time + delay > now) {
-                   printf("ACKing message with delay [%zu]\r\n", delay);
+               if(difftime(now, messageInstance->send_time) > delay) {
+                   printf("ACKing message with delay [%zu] [%f]\r\n", delay, difftime(now, messageInstance->send_time));
 
-                   if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
+                   if (IOTHUB_CLIENT_OK != IoTHubModuleClient_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
                        IoTHubMessage_Destroy(messageInstance->messageHandle);
-                       free(messageInstance);
+                       //free(messageInstance); <<-- maybe this is managed by the list?
                     }
 
+                    printf("ACKed message. Erase list entry.\r\n");
                     open_acks.erase(it);
                 } else {
+                    printf("Move to next message\r\n");
                     it++;
                 }
             }
