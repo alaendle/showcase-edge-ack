@@ -27,6 +27,14 @@ size_t messagesReceivedByInputQueue = 0;
 
 static std::list<MESSAGE_INSTANCE*> open_acks = { };
 
+static unsigned char *bytearray_to_str(const unsigned char *buffer, size_t len)
+{
+    unsigned char *ret = (unsigned char *)malloc(len + 1);
+    memcpy(ret, buffer, len);
+    ret[len] = '\0';
+    return ret;
+}
+
 static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDLE message, void* userContextCallback)
 {
     IOTHUBMESSAGE_DISPOSITION_RESULT result;
@@ -36,16 +44,14 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
     unsigned const char* messageBody;
     size_t contentSize;
 
-    if (IoTHubMessage_GetByteArray(message, &messageBody, &contentSize) != IOTHUB_MESSAGE_OK)
+    if (IoTHubMessage_GetByteArray(message, &messageBody, &contentSize) == IOTHUB_MESSAGE_OK)
     {
-        printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
-            messagesReceivedByInputQueue, "messageBody");
-    } else {
+        messageBody = bytearray_to_str(messageBody, contentSize);
         printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
             messagesReceivedByInputQueue, messageBody);
     }
 
-    result = IOTHUBMESSAGE_ASYNC_ACK;
+    result = IOTHUBMESSAGE_ASYNC_ACK; // IOTHUBMESSAGE_ACCEPTED
 
     MESSAGE_INSTANCE* messageInstance = (MESSAGE_INSTANCE*)malloc(sizeof(MESSAGE_INSTANCE));
     messageInstance->messageHandle = message;
@@ -124,12 +130,26 @@ void iothub_module()
             ThreadAPI_Sleep(100);
 
             // ACK open messages
-            for (std::list<MESSAGE_INSTANCE_TAG*>::iterator it = open_acks.begin(); it != open_acks.end(); ++it)
-            {
+            time_t now;
+            time(&now);
+
+            for (std::list<MESSAGE_INSTANCE_TAG*>::iterator it = open_acks.begin(); it != open_acks.end();)
+            {               
                MESSAGE_INSTANCE_TAG* messageInstance = *it;
-               if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
-                   IoTHubMessage_Destroy(messageInstance->messageHandle);
-                   free(messageInstance);
+
+               int delay = messagesReceivedByInputQueue >= 100 && messagesReceivedByInputQueue < 300 ? 45 : 5;
+
+               if(messageInstance->send_time + delay > now) {
+                   printf("ACKing message with delay [%zu]\r\n", delay);
+
+                   if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
+                       IoTHubMessage_Destroy(messageInstance->messageHandle);
+                       free(messageInstance);
+                    }
+
+                    open_acks.erase(it);
+                } else {
+                    it++;
                 }
             }
         }

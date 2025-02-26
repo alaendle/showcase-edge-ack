@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstdio>
 
 #include "iothub_module_client_ll.h"
 #include "iothub_client_options.h"
@@ -22,7 +21,7 @@ int messagesSend = 0;
 static void SendConfirmationCallback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
 {
     // The context corresponds to which message# we were at when we sent.
-    IOTHUB_MESSAGE_HANDLE* messageHandle = (IOTHUB_MESSAGE_HANDLE*)userContextCallback;
+    IOTHUB_MESSAGE_HANDLE messageHandle = (IOTHUB_MESSAGE_HANDLE)userContextCallback;
     printf("Confirmation received for message with result = %d\r\n", result);
     IoTHubMessage_Destroy(messageHandle);
 }
@@ -68,7 +67,6 @@ void iothub_module()
     if ((iotHubModuleClientHandle = InitializeConnection()) != NULL)
     {
         // The receiver just loops constantly waiting for messages.
-        printf("Waiting for incoming messages.\r\n");
         while (true)
         {
             IoTHubModuleClient_LL_DoWork(iotHubModuleClientHandle);
@@ -80,7 +78,7 @@ void iothub_module()
 
                 printf("Send Data: [%s]\r\n", buffer);
 
-                IOTHUB_MESSAGE_HANDLE *messageHandle = IoTHubMessage_CreateFromString(buffer);
+                IOTHUB_MESSAGE_HANDLE messageHandle = IoTHubMessage_CreateFromString(buffer);
                 IOTHUB_CLIENT_RESULT clientResult = IoTHubModuleClient_LL_SendEventToOutputAsync(iotHubModuleClientHandle, messageHandle, "output", SendConfirmationCallback, (void *)messageHandle);
                 if (clientResult != IOTHUB_CLIENT_OK)
                 {
@@ -96,6 +94,10 @@ void iothub_module()
 
 int main(void)
 {
+    std::setbuf(stdout, nullptr);
+    std::setbuf(stderr, nullptr);
+    printf("Starting...\r\n");
+
     iothub_module();
     return 0;
 }
