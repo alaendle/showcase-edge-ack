@@ -2,9 +2,9 @@
   "$schema-version": "0.0.1",
   "description": "",
   "image": {
-    "repository": "${CONTAINER_REGISTRY_SERVER}/source",
+    "repository": "ghcr.io/alaendle/showcase-edge-ack",
     "tag": {
-      "version": "0.0.1",
+      "version": "source-0.0.1",
       "platforms": {
         "amd64": "./Dockerfile.amd64",
         "amd64.debug": "./Dockerfile.amd64.debug",

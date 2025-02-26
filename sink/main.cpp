@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <list>
+#include <ctime>
 
 #include "iothub_module_client_ll.h"
 #include "iothub_client_options.h"
@@ -19,52 +20,13 @@
 typedef struct MESSAGE_INSTANCE_TAG
 {
     IOTHUB_MESSAGE_HANDLE messageHandle;
-    size_t messageTrackingId;  // For tracking the messages within the user callback.
+    time_t send_time;
 } 
 MESSAGE_INSTANCE;
 
-size_t messagesReceivedByInput1Queue = 0;
+size_t messagesReceivedByInputQueue = 0;
 
-// SendConfirmationCallback is invoked when the message that was forwarded on from 'InputQueue1Callback'
-// pipeline function is confirmed.
-static void SendConfirmationCallback(IOTHUB_CLIENT_CONFIRMATION_RESULT result, void* userContextCallback)
-{
-    // The context corresponds to which message# we were at when we sent.
-    MESSAGE_INSTANCE* messageInstance = (MESSAGE_INSTANCE*)userContextCallback;
-    printf("Confirmation[%zu] received for message with result = %d\r\n", messageInstance->messageTrackingId, result);
-    IoTHubMessage_Destroy(messageInstance->messageHandle);
-    free(messageInstance);
-}
-
-// Allocates a context for callback and clones the message
-// NOTE: The message MUST be cloned at this stage.  InputQueue1Callback's caller always frees the message
-// so we need to pass down a new copy.
-static MESSAGE_INSTANCE* CreateMessageInstance(IOTHUB_MESSAGE_HANDLE message)
-{
-    MESSAGE_INSTANCE* messageInstance = (MESSAGE_INSTANCE*)malloc(sizeof(MESSAGE_INSTANCE));
-    if (NULL == messageInstance)
-    {
-        printf("Failed allocating 'MESSAGE_INSTANCE' for pipelined message\r\n");
-    }
-    else
-    {
-        memset(messageInstance, 0, sizeof(*messageInstance));
-
-        if ((messageInstance->messageHandle = IoTHubMessage_Clone(message)) == NULL)
-        {
-            free(messageInstance);
-            messageInstance = NULL;
-        }
-        else
-        {
-            messageInstance->messageTrackingId = messagesReceivedByInput1Queue;
-        }
-    }
-
-    return messageInstance;
-}
-
-static std::list<IOTHUB_MESSAGE_HANDLE> open_acks = { };
+static std::list<MESSAGE_INSTANCE*> open_acks = { };
 
 static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDLE message, void* userContextCallback)
 {
@@ -78,15 +40,23 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
     if (IoTHubMessage_GetByteArray(message, &messageBody, &contentSize) != IOTHUB_MESSAGE_OK)
     {
         printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
-            messagesReceivedByInput1Queue, "messageBody");
+            messagesReceivedByInputQueue, "messageBody");
     } else {
         printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
-            messagesReceivedByInput1Queue, messageBody);
+            messagesReceivedByInputQueue, messageBody);
     }
 
     result = IOTHUBMESSAGE_ASYNC_ACK;
 
-    messagesReceivedByInput1Queue++;
+    MESSAGE_INSTANCE* messageInstance = (MESSAGE_INSTANCE*)malloc(sizeof(MESSAGE_INSTANCE));
+    messageInstance->messageHandle = message;
+    time_t now;
+    time(&now);
+    messageInstance->send_time = now;
+
+    open_acks.push_back(messageInstance);
+
+    messagesReceivedByInputQueue++;
     return result;
 }
 
@@ -126,9 +96,9 @@ static int SetupCallbacksForModule(IOTHUB_MODULE_CLIENT_LL_HANDLE iotHubModuleCl
 {
     int ret;
 
-    if (IoTHubModuleClient_LL_SetInputMessageCallback(iotHubModuleClientHandle, "input1", InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
+    if (IoTHubModuleClient_LL_SetInputMessageCallback(iotHubModuleClientHandle, "input", InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
     {
-        printf("ERROR: IoTHubModuleClient_LL_SetInputMessageCallback(\"input1\")..........FAILED!\r\n");
+        printf("ERROR: IoTHubModuleClient_LL_SetInputMessageCallback(\"input\")..........FAILED!\r\n");
         ret = 1;
     }
     else
@@ -155,9 +125,12 @@ void iothub_module()
             ThreadAPI_Sleep(100);
 
             // ACK open messages
-            for (IOTHUB_MESSAGE_HANDLE msg : open_acks) {
-               if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, msg, IOTHUBMESSAGE_ACCEPTED)) {
-                   IoTHubMessage_Destroy(msg);
+            for (std::list<MESSAGE_INSTANCE_TAG*>::iterator it = open_acks.begin(); it != open_acks.end(); ++it)
+            {
+               MESSAGE_INSTANCE_TAG* messageInstance = *it;
+               if (IOTHUB_CLIENT_OK != IoTHubModuleClient_LL_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
+                   IoTHubMessage_Destroy(messageInstance->messageHandle);
+                   free(messageInstance);
                 }
             }
         }
