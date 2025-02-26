@@ -148,7 +148,7 @@ void iothub_module()
                     }
 
                     printf("ACKed message. Erase list entry.\r\n");
-                    open_acks.erase(it);
+                    it = open_acks.erase(it);
                 } else {
                     printf("Move to next message\r\n");
                     it++;
