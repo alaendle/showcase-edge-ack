@@ -81,7 +81,7 @@ void iothub_module()
                 printf("Send Data: [%s]\r\n", buffer);
 
                 IOTHUB_MESSAGE_HANDLE *messageHandle = IoTHubMessage_CreateFromString(buffer);
-                IOTHUB_CLIENT_RESULT clientResult = IoTHubModuleClient_LL_SendEventToOutputAsync(iotHubModuleClientHandle, messageHandle, "output1", SendConfirmationCallback, (void *)messageHandle);
+                IOTHUB_CLIENT_RESULT clientResult = IoTHubModuleClient_LL_SendEventToOutputAsync(iotHubModuleClientHandle, messageHandle, "output", SendConfirmationCallback, (void *)messageHandle);
                 if (clientResult != IOTHUB_CLIENT_OK)
                 {
                     IoTHubMessage_Destroy(messageHandle);
