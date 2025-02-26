@@ -1,10 +1,9 @@
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#include <stdio.h>
-#include <stdlib.h>
 #include <list>
 #include <ctime>
+#include <cstdio>
 
 #include "iothub_module_client_ll.h"
 #include "iothub_client_options.h"
@@ -141,6 +140,10 @@ void iothub_module()
 
 int main(void)
 {
+    std::setbuf(stdout, nullptr);
+    std::setbuf(stderr, nullptr);
+    printf("Starting...\r\n");
+
     iothub_module();
     return 0;
 }
