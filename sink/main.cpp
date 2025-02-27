@@ -47,7 +47,7 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
     if (IoTHubMessage_GetByteArray(message, &messageBody, &contentSize) == IOTHUB_MESSAGE_OK)
     {
         messageBody = bytearray_to_str(messageBody, contentSize);
-        printf("Received Message [%zu]\r\n Data: [%s]\r\n", 
+        printf("Received Message [%zu]\r\n Data: [%.5s]\r\n", 
             messagesReceivedByInputQueue, messageBody);
     }
 
@@ -137,20 +137,20 @@ void iothub_module()
             {               
                MESSAGE_INSTANCE_TAG* messageInstance = *it;
 
-               int delay = messagesReceivedByInputQueue >= 100 && messagesReceivedByInputQueue < 300 ? 45 : 5;
+               int delay = messagesReceivedByInputQueue >= 100 && messagesReceivedByInputQueue < 300 ? 35 : 0;
 
-               if(difftime(now, messageInstance->send_time) > delay) {
+               if(difftime(now, messageInstance->send_time) >= delay) {
                    printf("ACKing message with delay [%zu] [%f]\r\n", delay, difftime(now, messageInstance->send_time));
 
                    if (IOTHUB_CLIENT_OK != IoTHubModuleClient_SendMessageDisposition(iotHubModuleClientHandle, messageInstance->messageHandle, IOTHUBMESSAGE_ACCEPTED)) {
                        IoTHubMessage_Destroy(messageInstance->messageHandle);
-                       //free(messageInstance); <<-- maybe this is managed by the list?
                     }
 
                     printf("ACKed message. Erase list entry.\r\n");
+                    free(messageInstance);
                     it = open_acks.erase(it);
                 } else {
-                    printf("Move to next message\r\n");
+                    //printf("Move to next message\r\n");
                     it++;
                 }
             }
