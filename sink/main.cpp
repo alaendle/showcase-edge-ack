@@ -137,7 +137,7 @@ void iothub_module()
             {               
                MESSAGE_INSTANCE_TAG* messageInstance = *it;
 
-               int delay = messagesReceivedByInputQueue >= 100 && messagesReceivedByInputQueue < 300 ? 35 : 0;
+               int delay = messagesReceivedByInputQueue >= 500 && messagesReceivedByInputQueue < 600 ? 35 : 1;
 
                if(difftime(now, messageInstance->send_time) >= delay) {
                    printf("ACKing message with delay [%zu] [%f]\r\n", delay, difftime(now, messageInstance->send_time));
