@@ -59,7 +59,11 @@ static IOTHUBMESSAGE_DISPOSITION_RESULT InputQueue1Callback(IOTHUB_MESSAGE_HANDL
     time(&now);
     messageInstance->send_time = now;
 
-    open_acks.push_back(messageInstance);
+    // next test - drop some ACKs
+    if (messagesReceivedByInputQueue < 500 || messagesReceivedByInputQueue >= 600)
+    {
+        open_acks.push_back(messageInstance);
+    }
 
     messagesReceivedByInputQueue++;
     return result;
