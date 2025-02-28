@@ -87,6 +87,12 @@ static IOTHUB_MODULE_CLIENT_HANDLE InitializeConnection()
         // Uncomment the following lines to enable verbose logging.
         bool traceOn = true;
         IoTHubModuleClient_SetOption(iotHubModuleClientHandle, OPTION_LOG_TRACE, &traceOn);
+
+        size_t sas_token_lifetime = 5 * 365 * 24 * 60 * 60; // = 5 years
+        IoTHubModuleClient_SetOption(iotHubModuleClientHandle, OPTION_SAS_TOKEN_LIFETIME, &sas_token_lifetime);
+
+        size_t retrytimeoutlimit = 2 * 60 * 60;
+        IoTHubModuleClient_SetRetryPolicy(iotHubModuleClientHandle, IOTHUB_CLIENT_RETRY_EXPONENTIAL_BACKOFF_WITH_JITTER, retrytimeoutlimit);
     }
 
     return iotHubModuleClientHandle;
@@ -105,9 +111,9 @@ static int SetupCallbacksForModule(IOTHUB_MODULE_CLIENT_HANDLE iotHubModuleClien
 {
     int ret;
 
-    if (IoTHubModuleClient_SetInputMessageCallback(iotHubModuleClientHandle, "input", InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
+    if (IoTHubModuleClient_SetMessageCallback(iotHubModuleClientHandle, InputQueue1Callback, (void*)iotHubModuleClientHandle) != IOTHUB_CLIENT_OK)
     {
-        printf("ERROR: IoTHubModuleClient_LL_SetInputMessageCallback(\"input\")..........FAILED!\r\n");
+        printf("ERROR: IoTHubModuleClient_SetMessageCallback..........FAILED!\r\n");
         ret = 1;
     }
     else
